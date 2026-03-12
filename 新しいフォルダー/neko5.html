@@ -2,106 +2,163 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>復活版：にゃんこ大戦争</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="robots" content="noindex,nofollow">
+    <title>にゃんこ小戦争</title>
     <style>
-        body { text-align: center; font-family: sans-serif; background: #eef; margin: 0; padding: 20px; }
-        #game-container {
-            position: relative; width: 900px; height: 350px;
-            margin: 20px auto; border: 4px solid #555;
-            background: linear-gradient(to bottom, #87CEEB 70%, #90EE90 70%);
-            overflow: hidden;
-        }
-        .castle { 
-            position: absolute; bottom: 0; width: 120px; height: 180px; 
-            color: #fff; display: flex; align-items: center; justify-content: center; 
-            font-weight: bold; z-index: 10; text-shadow: 1px 1px 2px #000;
-            background-size: contain; background-repeat: no-repeat; background-position: bottom center;
-        }
-        #player-castle { right: 0; background-image: url('my_castle.png'); }
-        #enemy-castle { left: 0; background-image: url('enemy_castle.png'); }
-
-        .unit { position: absolute; bottom: 10px; width: 80px; height: 80px; background-size: contain; background-repeat: no-repeat; background-position: bottom center; z-index: 5; }
-        .player-unit { } 
-
-        #ui-panel { background: #ddd; padding: 15px; width: 900px; margin: 0 auto; border-radius: 10px; box-shadow: 0 4px #bbb; }
-        .status-bar { display: flex; justify-content: space-between; margin-bottom: 15px; align-items: center; }
-        .money-box { background: #000; color: #0f0; padding: 10px 20px; border-radius: 20px; font-size: 26px; font-weight: bold; min-width: 250px; border: 2px solid gold; }
-        .button-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-        button { padding: 12px; cursor: pointer; font-weight: bold; border-radius: 5px; border: none; font-size: 16px; box-shadow: 0 4px #999; }
-        button:active { transform: translateY(2px); box-shadow: 0 2px #666; }
-        .spawn-btn { background: #fff; border: 2px solid #ff9800; }
-        .lv-btn { background: #ffeb3b; grid-column: 1 / -1; margin-bottom: 10px; border: 2px solid #fbc02d; }
-        button:disabled { background: #ccc !important; color: #888; box-shadow: none; }
+        * { touch-action: manipulation; -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
+        body { text-align: center; font-family: 'Arial Black', sans-serif; background: #eef; margin: 0; padding: 10px; overflow: hidden; }
         
-        #stage-display { font-size: 24px; color: #555; margin-bottom: 5px; font-weight: bold; }
+        #game-container {
+            position: relative; width: 100%; max-width: 900px; height: 300px;
+            margin: 40px auto 10px; border: 4px solid #555;
+            background: linear-gradient(to bottom, #87CEEB 70%, #90EE90 70%);
+            overflow: hidden; display: none;
+        }
+        .stage-2-active { background: linear-gradient(to bottom, #ff7e5f 70%, #feb47b 70%) !important; }
+
+        .overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); z-index: 100;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+
+        .logo-container { margin-bottom: 40px; line-height: 1.1; }
+        .logo-main {
+            font-size: 50px; color: #fff;
+            text-shadow: 
+                3px 3px 0 #000, -3px -3px 0 #000, 3px -3px 0 #000, -3px 3px 0 #000,
+                0 6px 10px rgba(0,0,0,0.5);
+            display: block;
+        }
+        .logo-sub {
+            font-size: 80px;
+            background: linear-gradient(to bottom, #ffeb3b 50%, #fbc02d 50%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(4px 4px 0 #000);
+            display: block;
+            margin-top: -10px;
+        }
+
+        /* ★ボタンサイズを統一するための設定 */
+        .menu-btn {
+            width: 200px; /* 横幅を固定 */
+            padding: 15px 0; /* 上下パディングのみ */
+            font-size: 20px; font-weight: bold; cursor: pointer;
+            background: #fff; border: 4px solid #333; border-radius: 10px; margin: 10px;
+            box-shadow: 0 5px #666; font-family: sans-serif;
+            display: block; /* 縦に並べる場合も綺麗に */
+        }
+        .menu-btn:active { transform: translateY(3px); box-shadow: 0 2px #333; }
+        .red-btn { border-color: #f44336; color: #f44336; }
+
+        .castle { position: absolute; width: 15%; height: 150px; z-index: 10; background-size: contain; background-repeat: no-repeat; background-position: bottom center; }
+        #enemy-castle { left: 0; bottom: -10px; background-image: url('enemy_castle.png'); }
+        #player-castle { right: 0; bottom: 5px; background-image: url('my_castle.png'); }
+        .castle-hp-text {
+            position: absolute; top: -40px; left: 50%; transform: translateX(-50%);
+            width: 100px; color: #333; font-weight: bold; font-size: 16px; font-family: sans-serif;
+            background: rgba(255,255,255,0.7); border-radius: 5px; padding: 2px; border: 1px solid #555;
+        }
+
+        .unit { position: absolute; bottom: 10px; background-size: contain; background-repeat: no-repeat; background-position: bottom center; z-index: 5; }
+
+        #ui-panel { background: #ddd; padding: 15px; width: 100%; max-width: 900px; margin: 0 auto; border-radius: 10px; display: none; font-family: sans-serif; }
+        .status-bar { display: flex; justify-content: space-between; margin-bottom: 15px; align-items: center; }
+        .money-box { background: #000; color: #0f0; padding: 8px 15px; border-radius: 20px; font-size: 20px; font-weight: bold; border: 2px solid gold; }
+        .button-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .spawn-btn { background: #fff; border: 2px solid #ff9800; font-size: 18px; font-weight: bold; padding: 15px; border-radius: 8px; }
+        .lv-btn { background: #ffeb3b; grid-column: 1 / -1; border: 2px solid #fbc02d; padding: 12px; font-weight: bold; }
+        button:disabled { background: #ccc !important; opacity: 0.6; }
     </style>
 </head>
 <body>
 
-    <div id="stage-display">STAGE 1</div>
-    <h1>にゃんこ大戦争</h1>
+    <div id="start-screen" class="overlay">
+        <div class="logo-container">
+            <span class="logo-main">にゃんこ</span>
+            <span class="logo-sub">小戦争</span>
+        </div>
+        <button class="menu-btn" onclick="startGame()">戦闘開始</button>
+    </div>
+
+    <div id="lose-menu" class="overlay" style="display: none;">
+        <h1 style="color: #f44336; font-size: 50px; text-shadow: 2px 2px 0 #000;">敗北...</h1>
+        <button class="menu-btn" onclick="retryStage()">再挑戦</button>
+        <button class="menu-btn red-btn" onclick="backToTitle()">撤退する</button>
+    </div>
+
+    <div id="stage-display" style="display:none; font-size: 20px; font-weight: bold; margin-top: 10px; font-family: sans-serif;">STAGE 1</div>
     
     <div id="ui-panel">
         <div class="status-bar">
             <div class="money-box">💰 <span id="money-txt">0</span> / <span id="max-money-txt">500</span></div>
-            <div style="font-size: 20px; font-weight: bold;">働きネコ Lv.<span id="worker-lv-txt">1</span></div>
+            <div style="font-size: 16px; font-weight: bold;">Lv.<span id="worker-lv-txt">1</span></div>
         </div>
         <div class="button-grid">
-            <button class="lv-btn" id="lv-up-btn" onclick="upgradeWorker()">働きネコ強化 (コスト:<span id="lv-cost-txt">100</span>)</button>
-            <button class="spawn-btn" id="btn-n1" onclick="spawn(0)">ネコ (20円)</button>
-            <button class="spawn-btn" id="btn-n2" onclick="spawn(1)">タンクねこ (50円)</button>
+            <button class="lv-btn" id="lv-up-btn" onclick="upgradeWorker()">働きネコ強化 (<span id="lv-cost-txt">100</span>)</button>
+            <button class="spawn-btn" id="btn-n1" onclick="spawn(0)">ネコ 20</button>
+            <button class="spawn-btn" id="btn-n2" onclick="spawn(1)">タンク 50</button>
         </div>
     </div>
     
     <div id="game-container">
-        <div id="enemy-castle" class="castle">敵城<br><span id="e-hp-txt">1000</span></div>
-        <div id="player-castle" class="castle">自城<br><span id="p-hp-txt">1000</span></div>
+        <div id="enemy-castle" class="castle"><div class="castle-hp-text">敵城: <span id="e-hp-txt">1000</span></div></div>
+        <div id="player-castle" class="castle"><div class="castle-hp-text">自城: <span id="p-hp-txt">1000</span></div></div>
     </div>
 
     <script>
-        // --- 音声管理システム (エラー防止版) ---
-        let lastAttackTime = 0;
-        function playAttackSound() {
-            let now = Date.now();
-            if (now - lastAttackTime > 100) { // 0.1秒の間隔
-                if (attackSe && attackSe.readyState >= 2) {
-                    attackSe.currentTime = 0;
-                    attackSe.play().catch(() => {});
-                }
-                lastAttackTime = now;
-            }
-        }
-
-        const loadAudio = (src) => {
-            try {
-                const a = new Audio(src);
-                a.onerror = () => console.log(src + " が見つかりません。音なしで続行します。");
-                return a;
-            } catch (e) {
-                return null;
-            }
-        };
-
+        const loadAudio = (src) => { const a = new Audio(src); return a; };
         const bgm = loadAudio('bgm.m4a'); if(bgm) bgm.loop = true;
         const attackSe = loadAudio('attack.mp3');
         const winSe = loadAudio('victory.mp3');
         const loseSe = loadAudio('defeat.mp3');
 
-        // --- ゲーム変数 ---
-        let currentStage = 1;
-        let difficultyMult = 1.0; 
-        let money = 0;
-        let workerLv = 1;
-        let maxMoney = 500;
-        let workerUpgradeCost = 100;
-        let playerUnits = [];
-        let enemyUnits = [];
-        let pCastleHP = 1000;
-        let eCastleHP = 1000;
-        let isGameOver = false;
-        const KILL_REWARD = 30;
+        function safePlay(audioObj) { if (audioObj) audioObj.play().catch(e => {}); }
 
-        // UI更新とお金加算
+        let currentStage = 1, difficultyMult = 1.0, money = 0, workerLv = 1, maxMoney = 500;
+        let workerUpgradeCost = 100, playerUnits = [], enemyUnits = [], pCastleHP = 1000, eCastleHP = 1000;
+        let isGameOver = true, lastAttackTime = 0, isFirstEnemy = true;
+        let spawnInterval;
+
+        function startGame() {
+            document.getElementById('start-screen').style.display = 'none';
+            document.getElementById('game-container').style.display = 'block';
+            document.getElementById('ui-panel').style.display = 'block';
+            document.getElementById('stage-display').style.display = 'block';
+            resetStageData(1);
+            isGameOver = false;
+            safePlay(bgm);
+            enemySpawnLoop();
+        }
+
+        function retryStage() {
+            document.getElementById('lose-menu').style.display = 'none';
+            resetStageData(currentStage);
+            isGameOver = false;
+            safePlay(bgm);
+            enemySpawnLoop();
+        }
+
+        function backToTitle() { location.reload(); }
+
+        function resetStageData(stage) {
+            currentStage = stage;
+            difficultyMult = (stage === 1) ? 1.0 : 1.5;
+            pCastleHP = 1000;
+            eCastleHP = (stage === 1) ? 1000 : 2000;
+            money = 0; workerLv = 1; maxMoney = 500; workerUpgradeCost = 100;
+            isFirstEnemy = true;
+            playerUnits.forEach(u => u.el.remove());
+            enemyUnits.forEach(u => u.el.remove());
+            playerUnits = []; enemyUnits = [];
+            document.getElementById('stage-display').innerText = "STAGE " + stage;
+            if(stage === 2) document.getElementById('game-container').classList.add('stage-2-active');
+            else document.getElementById('game-container').classList.remove('stage-2-active');
+            clearTimeout(spawnInterval);
+        }
+
         setInterval(() => {
             if (isGameOver) return;
             if (money < maxMoney) money += (0.15 + (workerLv * 0.15));
@@ -127,110 +184,82 @@
 
         function spawn(id) {
             if (isGameOver) return;
-            if (bgm && bgm.paused) bgm.play().catch(() => {});
-
             const imgs = ['neko.png', 'tank.png'];
-            const costs = [20, 50];
-            const hps = [150, 1500];
-            const atks = [40, 5];
-            const speeds = [3, 1.5];
-
-            if (money >= costs[id]) {
-                money -= costs[id];
+            const hps = [150, 1500], atks = [23, 5];
+            if (money >= (id === 0 ? 20 : 50)) {
+                money -= (id === 0 ? 20 : 50);
                 const el = document.createElement('div');
-                el.className = 'unit player-unit';
+                el.className = 'unit';
                 el.style.backgroundImage = `url('${imgs[id]}')`;
                 document.getElementById('game-container').appendChild(el);
-                let startX = 800;
+                let range = (id === 1) ? 5 : 50; 
+                let size = (id === 1) ? 90 : 60;
+                let offset = (id === 1) ? 30 : 0; 
+                el.style.width = size + 'px'; el.style.height = size + 'px';
+                let startX = document.getElementById('game-container').clientWidth - 80;
                 el.style.left = startX + 'px';
-                playerUnits.push({ el: el, x: startX, hp: hps[id], atk: atks[id], range: 60, speed: speeds[id] });
+                playerUnits.push({ el: el, x: startX, hp: hps[id], atk: atks[id], range: range, speed: (id===0?3:1.5), size: size, offset: offset });
             }
         }
 
-        function enemySpawn() {
+        function enemySpawnLoop() {
             if (isGameOver) return;
             const imgs = ['dog.png', 'seal.png'];
-            const id = Math.floor(Math.random() * 2);
+            let id = isFirstEnemy ? 0 : Math.floor(Math.random() * 2);
+            isFirstEnemy = false;
             const el = document.createElement('div');
-            el.className = 'unit';
-            el.style.backgroundImage = `url('${imgs[id]}')`;
+            el.className = 'unit'; el.style.backgroundImage = `url('${imgs[id]}')`;
             document.getElementById('game-container').appendChild(el);
-            let hp = 150 * difficultyMult;
-            let atk = 20 * difficultyMult;
-            if (currentStage === 2 && id === 1) {
-                hp *= 2.5; el.style.width = '110px'; el.style.height = '110px';
-            }
-            enemyUnits.push({ el: el, x: 20, hp: hp, atk: atk, range: 60, speed: 1.8 * (difficultyMult * 0.7) });
-            setTimeout(enemySpawn, (currentStage === 1) ? 4000 : 2500);
+            let hp = 150 * difficultyMult; let atk = 20 * difficultyMult;
+            let size = (id === 1) ? 120 : 60;
+            el.style.width = size + 'px'; el.style.height = size + 'px';
+            let range = (id === 1) ? 90 : 20; let offset = (id === 0) ? -30 : 0;
+            if (id === 1) hp *= 2.0; 
+            enemyUnits.push({ el: el, x: 20, hp: hp, atk: atk, range: range, speed: 1.8, size: size, offset: offset });
+            spawnInterval = setTimeout(enemySpawnLoop, (currentStage === 1) ? 4000 : 2500);
         }
-        enemySpawn();
 
         setInterval(() => {
             if (isGameOver) return;
+            let containerWidth = document.getElementById('game-container').clientWidth;
 
-            // 味方の処理
             playerUnits.forEach(p => {
-                let target = enemyUnits.find(e => p.x - e.x < p.range && p.x > e.x);
+                let target = enemyUnits.find(e => {
+                    let distance = (p.x + p.offset) - (e.x + e.offset);
+                    return distance < Math.max((p.size/2 + e.size/2)*1.1, p.range, e.range) && distance > 0;
+                });
                 if (target) {
                     target.hp -= p.atk / 10;
-                    playAttackSound(); // 味方の攻撃音
-                } else if (p.x > 80) {
-                    p.x -= p.speed;
-                    p.el.style.left = p.x + 'px';
-                } else {
-                    eCastleHP -= (p.atk / 50);
-                    playAttackSound(); // 敵城への攻撃音
-                }
+                    if (Date.now() - lastAttackTime > 150) { safePlay(attackSe); lastAttackTime = Date.now(); }
+                } else if (p.x > 80) { p.x -= p.speed; p.el.style.left = p.x + 'px'; }
+                else { eCastleHP -= (p.atk / 50); }
             });
 
-            // 敵の処理
             enemyUnits.forEach(e => {
-                let target = playerUnits.find(p => p.x - e.x < e.range && p.x > e.x);
-                if (target) {
-                    target.hp -= e.atk / 10;
-                    playAttackSound(); // 敵の攻撃音
-                } else if (e.x < 740) {
-                    e.x += e.speed;
-                    e.el.style.left = e.x + 'px';
-                } else {
-                    pCastleHP -= (1 * difficultyMult);
-                    playAttackSound(); // 自城への攻撃音
-                }
+                let target = playerUnits.find(p => {
+                    let distance = (p.x + p.offset) - (e.x + e.offset);
+                    return distance < Math.max((e.size/2 + p.size/2)*1.1, e.range, p.range) && distance > 0;
+                });
+                if (target) { target.hp -= e.atk / 10; }
+                else if (e.x < containerWidth - 140) { e.x += e.speed; e.el.style.left = e.x + 'px'; }
+                else { pCastleHP -= (1 * difficultyMult); }
             });
 
             playerUnits = playerUnits.filter(p => p.hp > 0 || (p.el.remove(), false));
-            enemyUnits = enemyUnits.filter(e => {
-                if (e.hp <= 0) {
-                    money += (KILL_REWARD * difficultyMult);
-                    if (money > maxMoney) money = maxMoney;
-                    e.el.remove();
-                    return false;
-                }
-                return true;
-            });
+            enemyUnits = enemyUnits.filter(e => e.hp > 0 || (money = Math.min(maxMoney, money + 30*difficultyMult), e.el.remove(), false));
 
-            if (eCastleHP <= 0 && !isGameOver) {
-                if (currentStage === 1) nextStage();
-                else {
-                    isGameOver = true; if(bgm) bgm.pause(); if(winSe) winSe.play().catch(()=>{});
-                    setTimeout(() => { alert("完全クリア！"); location.reload(); }, 300);
+            if (eCastleHP <= 0) {
+                if (currentStage === 1) { 
+                    alert("STAGE 1 クリア！地獄の第二ステージスタート！"); 
+                    resetStageData(2); enemySpawnLoop(); 
                 }
+                else { isGameOver = true; bgm.pause(); safePlay(winSe); setTimeout(() => { alert("全クリア！おめでとう！"); location.reload(); }, 300); }
             }
-            if (pCastleHP <= 0 && !isGameOver) {
-                isGameOver = true; if(bgm) bgm.pause(); if(loseSe) loseSe.play().catch(()=>{});
-                setTimeout(() => { alert("敗北…"); location.reload(); }, 300);
+            if (pCastleHP <= 0) {
+                isGameOver = true; bgm.pause(); safePlay(loseSe);
+                document.getElementById('lose-menu').style.display = 'flex';
             }
         }, 50);
-
-        function nextStage() {
-            currentStage = 2;
-            difficultyMult = 2.5; eCastleHP = 3500; pCastleHP = 1000; money = 0;
-            playerUnits.forEach(u => u.el.remove());
-            enemyUnits.forEach(u => u.el.remove());
-            playerUnits = []; enemyUnits = [];
-            document.getElementById('stage-display').innerText = "STAGE 2 (HARD)";
-            alert("STAGE 1 クリア！地獄のステージ2へ進みます。");
-        }
     </script>
 </body>
 </html>

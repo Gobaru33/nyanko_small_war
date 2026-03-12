@@ -5,111 +5,109 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="robots" content="noindex,nofollow">
-    <title>にゃんこ小戦争：アザラシ低空版</title>
+    <title>にゃんこ小戦争：レイアウト修正版</title>
     <style>
         * { touch-action: manipulation; -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
         
         html, body { 
             position: fixed; width: 100%; height: 100%; 
             margin: 0; padding: 0; overflow: hidden; 
-            background: #eef; font-family: 'Arial Black', sans-serif;
+            background: #000; font-family: 'Arial Black', sans-serif;
         }
 
+        /* 戦場：UIパネルを除いた残りの高さ(calc)を自動計算して、被りを防止 */
         #game-container {
-            position: relative; width: 100%; height: 85vh; 
-            margin: 0; background: linear-gradient(to bottom, #87CEEB 80%, #90EE90 80%);
-            overflow: hidden; display: none;
+            position: relative; 
+            width: 100%; 
+            height: calc(100% - 120px); /* 120pxは下のボタンエリアの高さ */
+            margin: 0; 
+            background: linear-gradient(to bottom, #87CEEB 80%, #90EE90 80%);
+            overflow: hidden; 
+            display: none;
         }
         .stage-2-active { background: linear-gradient(to bottom, #ff7e5f 80%, #feb47b 80%) !important; }
 
+        /* 所持金表示を少しコンパクトに調整（被り対策） */
         .money-display {
-            position: absolute; top: 5px; right: 15px;
-            font-size: 50px; font-weight: bold; color: #ffeb3b;
-            text-shadow: 4px 4px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000;
-            z-index: 50;
-            letter-spacing: -2px;
+            position: absolute; top: 5px; right: 10px;
+            font-size: 35px; font-weight: bold; color: #ffeb3b;
+            text-shadow: 3px 3px 0 #000;
+            z-index: 100;
         }
 
-        .castle { position: absolute; width: 12.5%; height: 30%; z-index: 10; background-size: contain; background-repeat: no-repeat; background-position: bottom center; }
+        /* キャラクターと城：地面に密着させる */
+        .unit { position: absolute; bottom: 0; background-size: contain; background-repeat: no-repeat; background-position: bottom center; z-index: 5; }
+        .castle { position: absolute; width: 12.5%; height: 35%; z-index: 10; background-size: contain; background-repeat: no-repeat; background-position: bottom center; }
         #enemy-castle { left: 0; bottom: -15px; background-image: url('enemy_castle.png'); }
-        #player-castle { right: 0; bottom: 5px; background-image: url('my_castle.png'); }
-        
-        .castle-hp-text { position: absolute; top: -25px; left: 50%; transform: translateX(-50%); width: 70px; color: #fff; font-size: 11px; text-shadow: 1px 1px 0 #000; background: rgba(0,0,0,0.5); border: 1px solid #555; text-align: center; }
+        #player-castle { right: 0; bottom: 0; background-image: url('my_castle.png'); }
 
-        .unit { position: absolute; bottom: 5px; background-size: contain; background-repeat: no-repeat; background-position: bottom center; z-index: 5; }
-
-        #ui-panel { position: absolute; left: 0; bottom: 0; width: 100%; height: 15vh; background: #333; border-top: 4px solid #111; display: none; }
+        /* ------------------ UIパネル：最下部に固定 ------------------ */
+        #ui-panel { 
+            position: absolute; left: 0; bottom: 0; 
+            width: 100%; height: 120px; /* 高さを固定 */
+            background: #222; 
+            border-top: 4px solid #444; 
+            display: none; 
+            z-index: 200; /* キャラより前面に */
+        }
         
         .btn-panel-container {
-            position: absolute; width: 100%; height: 100%;
-            display: grid; grid-template-columns: 28% 72%;
-            gap: 5px; padding: 5px;
+            width: 100%; height: 100%;
+            display: grid; grid-template-columns: 30% 70%;
+            gap: 5px; padding: 8px;
         }
 
+        /* 働き猫ボタン：さらに大きく */
         .lv-up-btn {
-            width: 100%; background: #ffeb3b; border-radius: 12px; border: 4px solid #fff;
+            width: 100%; height: 100%; background: #ffeb3b; border-radius: 12px; border: 4px solid #fff;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            font-size: 14px; font-weight: bold; padding: 2px;
-            box-shadow: inset 0 0 10px rgba(0,0,0,0.4);
+            font-size: 14px; font-weight: bold;
         }
-        .lv-up-cost-txt { font-size: 16px; font-weight: bold; color: #d4a017; text-shadow: 1px 1px 0 #000; }
-        .lv-up-btn:disabled { background: #666 !important; opacity: 0.8; color: #888; }
+        .lv-up-cost-txt { font-size: 18px; color: #d4a017; text-shadow: 1px 1px 0 #000; }
 
+        /* 出撃ボタン */
+        .spawn-btn-container { display: flex; gap: 8px; align-items: stretch; }
         .spawn-btn {
-            flex: 1; background: #fff; border: 4px solid #222; border-radius: 10px;
-            position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center;
-            box-shadow: inset 0 0 8px rgba(0,0,0,0.3);
+            flex: 1; background: #fff; border: 4px solid #000; border-radius: 10px;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            position: relative;
         }
-        .spawn-btn-cost { position: absolute; right: 5px; bottom: 3px; color: #d4a017; font-size: 16px; font-weight: bold; text-shadow: 1px 1px 0 #000; }
-        .spawn-btn:disabled { background: #555 !important; opacity: 0.8; }
+        .spawn-btn-cost { position: absolute; right: 5px; bottom: 5px; color: #d4a017; font-size: 18px; font-weight: bold; }
+        
+        button:disabled { background: #555 !important; opacity: 0.7; color: #888; }
 
-        .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        .logo-main { font-size: 30px; color: #fff; text-shadow: 2px 2px 0 #000; display: block; }
-        .logo-sub { font-size: 60px; background: linear-gradient(to bottom, #ffeb3b 50%, #fbc02d 50%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(3px 3px 0 #000); display: block; }
-        .menu-btn { width: 180px; padding: 12px 0; font-size: 20px; font-weight: bold; cursor: pointer; background: #fff; border: 3px solid #333; border-radius: 10px; margin: 10px; }
+        .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 500; display: flex; flex-direction: column; align-items: center; justify-content: center; }
     </style>
 </head>
 <body>
 
     <div id="start-screen" class="overlay">
         <div style="margin-bottom:20px; text-align:center;">
-            <span class="logo-main">にゃんこ</span>
-            <span class="logo-sub">小戦争</span>
+            <span style="font-size:30px; color:#fff; text-shadow:2px 2px 0 #000;">にゃんこ</span><br>
+            <span style="font-size:60px; background:linear-gradient(to bottom, #ffeb3b 50%, #fbc02d 50%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; filter:drop-shadow(3px 3px 0 #000);">小戦争</span>
         </div>
-        <button class="menu-btn" onclick="startGame()">戦闘開始</button>
-    </div>
-
-    <div id="lose-menu" class="overlay" style="display: none;">
-        <h1 style="color: #f44336; font-size: 40px;">敗北...</h1>
-        <button class="menu-btn" onclick="retryStage()">再挑戦</button>
-        <button class="menu-btn" onclick="location.reload()">撤退する</button>
+        <button style="width:180px; padding:12px; font-size:20px; font-weight:bold; background:#fff; border-radius:10px;" onclick="startGame()">戦闘開始</button>
     </div>
 
     <div id="game-container">
-        <div class="money-display">
-            <span id="money-txt">0</span> / <span id="max-money-txt">500</span>
-        </div>
-        
-        <div id="enemy-castle" class="castle"><div class="castle-hp-text"><span id="e-hp-txt">1000</span></div></div>
-        <div id="player-castle" class="castle"><div class="castle-hp-text"><span id="p-hp-txt">1000</span></div></div>
+        <div class="money-display"><span id="money-txt">0</span> / <span id="max-money-txt">500</span></div>
+        <div id="enemy-castle" class="castle"></div>
+        <div id="player-castle" class="castle"></div>
     </div>
 
     <div id="ui-panel">
         <div class="btn-panel-container">
-            <div style="display:flex; align-items:stretch; justify-content:stretch;">
-                <button class="lv-up-btn" id="lv-up-btn" onclick="upgradeWorker()">
-                    <span style="font-size:12px;">働き猫Lv.<span id="worker-lv-txt">1</span></span>
-                    <span class="lv-up-cost-txt"><span id="lv-cost-txt">100</span>円</span>
-                </button>
-            </div>
-
-            <div style="display:flex; gap:5px; align-items:stretch; justify-content:stretch;">
+            <button class="lv-up-btn" id="lv-up-btn" onclick="upgradeWorker()">
+                <span>働き猫 Lv.<span id="worker-lv-txt">1</span></span>
+                <span class="lv-up-cost-txt"><span id="lv-cost-txt">100</span>円</span>
+            </button>
+            <div class="spawn-btn-container">
                 <button class="spawn-btn" id="btn-n1" onclick="spawn(0)">
-                    <span style="font-size:18px; font-weight:bold;">ねこ</span>
+                    <span style="font-size:22px; font-weight:bold;">ねこ</span>
                     <span class="spawn-btn-cost">20円</span>
                 </button>
                 <button class="spawn-btn" id="btn-n2" onclick="spawn(1)">
-                    <span style="font-size:18px; font-weight:bold;">タンク</span>
+                    <span style="font-size:22px; font-weight:bold;">タンク</span>
                     <span class="spawn-btn-cost">50円</span>
                 </button>
             </div>
@@ -117,8 +115,9 @@
     </div>
 
     <script>
-        const loadAudio = (src) => { const a = new Audio(src); return a; };
-        const bgm = loadAudio('bgm.m4a'); if(bgm) bgm.loop = true;
+        // --- 以前のスクリプト（Audio, 変数, spawn, enemySpawnLoop, 各種インターバルなど）はそのまま流用してください ---
+        const loadAudio = (src) => new Audio(src);
+        const bgm = loadAudio('bgm.m4a'); bgm.loop = true;
         const attackSe = loadAudio('attack.mp3');
         const winSe = loadAudio('victory.mp3');
         const loseSe = loadAudio('defeat.mp3');
@@ -139,14 +138,6 @@
             enemySpawnLoop();
         }
 
-        function retryStage() {
-            isGameOver = false;
-            document.getElementById('lose-menu').style.display = 'none';
-            resetStageData(currentStage);
-            safePlay(bgm);
-            enemySpawnLoop();
-        }
-
         function resetStageData(stage) {
             currentStage = stage;
             difficultyMult = (stage === 1) ? 1.0 : 1.5;
@@ -156,7 +147,6 @@
             playerUnits.forEach(u => u.el.remove()); enemyUnits.forEach(u => u.el.remove());
             playerUnits = []; enemyUnits = [];
             if(stage === 2) document.getElementById('game-container').classList.add('stage-2-active');
-            else document.getElementById('game-container').classList.remove('stage-2-active');
             clearTimeout(spawnInterval);
         }
 
@@ -167,9 +157,6 @@
             document.getElementById('max-money-txt').innerText = maxMoney;
             document.getElementById('worker-lv-txt').innerText = workerLv;
             document.getElementById('lv-cost-txt').innerText = workerUpgradeCost;
-            document.getElementById('e-hp-txt').innerText = Math.floor(eCastleHP);
-            document.getElementById('p-hp-txt').innerText = Math.floor(pCastleHP);
-            
             document.getElementById('btn-n1').disabled = (money < 20);
             document.getElementById('btn-n2').disabled = (money < 50);
             document.getElementById('lv-up-btn').disabled = (money < workerUpgradeCost);
@@ -207,12 +194,8 @@
             document.getElementById('game-container').appendChild(el);
             let size = (id === 1) ? 140 : 70;
             el.style.width = size + 'px'; el.style.height = size + 'px';
-            
-            // ★アザラシ(id===1)の場合、地面よりさらに5px下げる（bottom: -5px）
             if (id === 1) el.style.bottom = "-5px";
-            
-            let baseAtk = (id === 0) ? 40 : 65; 
-            enemyUnits.push({ el: el, x: 20, hp: (id===1?300:150)*difficultyMult, atk: baseAtk*difficultyMult, range: (id===1?90:20), speed: 1.8, size: size, offset: (id===0?-30:0) });
+            enemyUnits.push({ el: el, x: 20, hp: (id===1?300:150)*difficultyMult, atk: (id===0?40:65)*difficultyMult, range: (id===1?90:20), speed: 1.8, size: size, offset: (id===0?-30:0) });
             spawnInterval = setTimeout(enemySpawnLoop, (currentStage === 1) ? 4500 : 3000);
         }
 
@@ -243,10 +226,10 @@
             enemyUnits = enemyUnits.filter(e => e.hp > 0 || (money = Math.min(maxMoney, money + 30*difficultyMult), e.el.remove(), false));
 
             if (eCastleHP <= 0) {
-                if (currentStage === 1) { alert("STAGE 1 クリア！地獄の第二ステージスタート！"); resetStageData(2); enemySpawnLoop(); }
+                if (currentStage === 1) { alert("STAGE 1 クリア！"); resetStageData(2); enemySpawnLoop(); }
                 else { isGameOver = true; bgm.pause(); safePlay(winSe); alert("全クリア！"); location.reload(); }
             }
-            if (pCastleHP <= 0) { isGameOver = true; bgm.pause(); safePlay(loseSe); document.getElementById('lose-menu').style.display = 'flex'; }
+            if (pCastleHP <= 0) { isGameOver = true; bgm.pause(); safePlay(loseSe); location.reload(); }
         }, 50);
     </script>
 </body>

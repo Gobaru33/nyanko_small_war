@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>復活版：にゃんこ大戦争</title>
+    <style>
+        body { text-align: center; font-family: sans-serif; background: #eef; margin: 0; padding: 20px; }
+        #game-container {
+            position: relative; width: 900px; height: 350px;
+            margin: 20px auto; border: 4px solid #555;
+            background: linear-gradient(to bottom, #87CEEB 70%, #90EE90 70%);
+            overflow: hidden;
+        }
+        .castle { 
+            position: absolute; bottom: 0; width: 120px; height: 180px; 
+            color: #fff; display: flex; align-items: center; justify-content: center; 
+            font-weight: bold; z-index: 10; text-shadow: 1px 1px 2px #000;
+            background-size: contain; background-repeat: no-repeat; background-position: bottom center;
+        }
+        #player-castle { right: 0; background-image: url('my_castle.png'); }
+        #enemy-castle { left: 0; background-image: url('enemy_castle.png'); }
+
+        .unit { position: absolute; bottom: 10px; width: 80px; height: 80px; background-size: contain; background-repeat: no-repeat; background-position: bottom center; z-index: 5; }
+        .player-unit { } 
+
+        #ui-panel { background: #ddd; padding: 15px; width: 900px; margin: 0 auto; border-radius: 10px; box-shadow: 0 4px #bbb; }
+        .status-bar { display: flex; justify-content: space-between; margin-bottom: 15px; align-items: center; }
+        .money-box { background: #000; color: #0f0; padding: 10px 20px; border-radius: 20px; font-size: 26px; font-weight: bold; min-width: 250px; border: 2px solid gold; }
+        .button-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        button { padding: 12px; cursor: pointer; font-weight: bold; border-radius: 5px; border: none; font-size: 16px; box-shadow: 0 4px #999; }
+        button:active { transform: translateY(2px); box-shadow: 0 2px #666; }
+        .spawn-btn { background: #fff; border: 2px solid #ff9800; }
+        .lv-btn { background: #ffeb3b; grid-column: 1 / -1; margin-bottom: 10px; border: 2px solid #fbc02d; }
+        button:disabled { background: #ccc !important; color: #888; box-shadow: none; }
+        
+        #stage-display { font-size: 24px; color: #555; margin-bottom: 5px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div id="stage-display">STAGE 1</div>
+    <h1>にゃんこ大戦争</h1>
+    
+    <div id="ui-panel">
+        <div class="status-bar">
+            <div class="money-box">💰 <span id="money-txt">0</span> / <span id="max-money-txt">500</span></div>
+            <div style="font-size: 20px; font-weight: bold;">働きネコ Lv.<span id="worker-lv-txt">1</span></div>
+        </div>
+        <div class="button-grid">
+            <button class="lv-btn" id="lv-up-btn" onclick="upgradeWorker()">働きネコ強化 (コスト:<span id="lv-cost-txt">100</span>)</button>
+            <button class="spawn-btn" id="btn-n1" onclick="spawn(0)">ネコ (20円)</button>
+            <button class="spawn-btn" id="btn-n2" onclick="spawn(1)">タンクねこ (50円)</button>
+        </div>
+    </div>
+    
+    <div id="game-container">
+        <div id="enemy-castle" class="castle">敵城<br><span id="e-hp-txt">1000</span></div>
+        <div id="player-castle" class="castle">自城<br><span id="p-hp-txt">1000</span></div>
+    </div>
+
+    <script>
+        // --- 音声管理システム (エラー防止版) ---
+        let lastAttackTime = 0;
+        function playAttackSound() {
+            let now = Date.now();
+            if (now - lastAttackTime > 100) { // 0.1秒の間隔
+                if (attackSe && attackSe.readyState >= 2) {
+                    attackSe.currentTime = 0;
+                    attackSe.play().catch(() => {});
+                }
+                lastAttackTime = now;
+            }
+        }
+
+        const loadAudio = (src) => {
+            try {
+                const a = new Audio(src);
+                a.onerror = () => console.log(src + " が見つかりません。音なしで続行します。");
+                return a;
+            } catch (e) {
+                return null;
+            }
+        };
+
+        const bgm = loadAudio('bgm.m4a'); if(bgm) bgm.loop = true;
+        const attackSe = loadAudio('attack.mp3');
+        const winSe = loadAudio('victory.mp3');
+        const loseSe = loadAudio('defeat.mp3');
+
+        // --- ゲーム変数 ---
+        let currentStage = 1;
+        let difficultyMult = 1.0; 
+        let money = 0;
+        let workerLv = 1;
+        let maxMoney = 500;
+        let workerUpgradeCost = 100;
+        let playerUnits = [];
+        let enemyUnits = [];
+        let pCastleHP = 1000;
+        let eCastleHP = 1000;
+        let isGameOver = false;
+        const KILL_REWARD = 30;
+
+        // UI更新とお金加算
+        setInterval(() => {
+            if (isGameOver) return;
+            if (money < maxMoney) money += (0.15 + (workerLv * 0.15));
+            document.getElementById('money-txt').innerText = Math.floor(money);
+            document.getElementById('max-money-txt').innerText = maxMoney;
+            document.getElementById('worker-lv-txt').innerText = workerLv;
+            document.getElementById('lv-cost-txt').innerText = workerUpgradeCost;
+            document.getElementById('e-hp-txt').innerText = Math.max(0, Math.floor(eCastleHP));
+            document.getElementById('p-hp-txt').innerText = Math.max(0, Math.floor(pCastleHP));
+            document.getElementById('btn-n1').disabled = (money < 20);
+            document.getElementById('btn-n2').disabled = (money < 50);
+            document.getElementById('lv-up-btn').disabled = (money < workerUpgradeCost);
+        }, 100);
+
+        function upgradeWorker() {
+            if (money >= workerUpgradeCost) {
+                money -= workerUpgradeCost;
+                workerLv++;
+                maxMoney += 500;
+                workerUpgradeCost = Math.floor(workerUpgradeCost * 1.6);
+            }
+        }
+
+        function spawn(id) {
+            if (isGameOver) return;
+            if (bgm && bgm.paused) bgm.play().catch(() => {});
+
+            const imgs = ['neko.png', 'tank.png'];
+            const costs = [20, 50];
+            const hps = [150, 1500];
+            const atks = [40, 5];
+            const speeds = [3, 1.5];
+
+            if (money >= costs[id]) {
+                money -= costs[id];
+                const el = document.createElement('div');
+                el.className = 'unit player-unit';
+                el.style.backgroundImage = `url('${imgs[id]}')`;
+                document.getElementById('game-container').appendChild(el);
+                let startX = 800;
+                el.style.left = startX + 'px';
+                playerUnits.push({ el: el, x: startX, hp: hps[id], atk: atks[id], range: 60, speed: speeds[id] });
+            }
+        }
+
+        function enemySpawn() {
+            if (isGameOver) return;
+            const imgs = ['dog.png', 'seal.png'];
+            const id = Math.floor(Math.random() * 2);
+            const el = document.createElement('div');
+            el.className = 'unit';
+            el.style.backgroundImage = `url('${imgs[id]}')`;
+            document.getElementById('game-container').appendChild(el);
+            let hp = 150 * difficultyMult;
+            let atk = 20 * difficultyMult;
+            if (currentStage === 2 && id === 1) {
+                hp *= 2.5; el.style.width = '110px'; el.style.height = '110px';
+            }
+            enemyUnits.push({ el: el, x: 20, hp: hp, atk: atk, range: 60, speed: 1.8 * (difficultyMult * 0.7) });
+            setTimeout(enemySpawn, (currentStage === 1) ? 4000 : 2500);
+        }
+        enemySpawn();
+
+        setInterval(() => {
+            if (isGameOver) return;
+
+            // 味方の処理
+            playerUnits.forEach(p => {
+                let target = enemyUnits.find(e => p.x - e.x < p.range && p.x > e.x);
+                if (target) {
+                    target.hp -= p.atk / 10;
+                    playAttackSound(); // 味方の攻撃音
+                } else if (p.x > 80) {
+                    p.x -= p.speed;
+                    p.el.style.left = p.x + 'px';
+                } else {
+                    eCastleHP -= (p.atk / 50);
+                    playAttackSound(); // 敵城への攻撃音
+                }
+            });
+
+            // 敵の処理
+            enemyUnits.forEach(e => {
+                let target = playerUnits.find(p => p.x - e.x < e.range && p.x > e.x);
+                if (target) {
+                    target.hp -= e.atk / 10;
+                    playAttackSound(); // 敵の攻撃音
+                } else if (e.x < 740) {
+                    e.x += e.speed;
+                    e.el.style.left = e.x + 'px';
+                } else {
+                    pCastleHP -= (1 * difficultyMult);
+                    playAttackSound(); // 自城への攻撃音
+                }
+            });
+
+            playerUnits = playerUnits.filter(p => p.hp > 0 || (p.el.remove(), false));
+            enemyUnits = enemyUnits.filter(e => {
+                if (e.hp <= 0) {
+                    money += (KILL_REWARD * difficultyMult);
+                    if (money > maxMoney) money = maxMoney;
+                    e.el.remove();
+                    return false;
+                }
+                return true;
+            });
+
+            if (eCastleHP <= 0 && !isGameOver) {
+                if (currentStage === 1) nextStage();
+                else {
+                    isGameOver = true; if(bgm) bgm.pause(); if(winSe) winSe.play().catch(()=>{});
+                    setTimeout(() => { alert("完全クリア！"); location.reload(); }, 300);
+                }
+            }
+            if (pCastleHP <= 0 && !isGameOver) {
+                isGameOver = true; if(bgm) bgm.pause(); if(loseSe) loseSe.play().catch(()=>{});
+                setTimeout(() => { alert("敗北…"); location.reload(); }, 300);
+            }
+        }, 50);
+
+        function nextStage() {
+            currentStage = 2;
+            difficultyMult = 2.5; eCastleHP = 3500; pCastleHP = 1000; money = 0;
+            playerUnits.forEach(u => u.el.remove());
+            enemyUnits.forEach(u => u.el.remove());
+            playerUnits = []; enemyUnits = [];
+            document.getElementById('stage-display').innerText = "STAGE 2 (HARD)";
+            alert("STAGE 1 クリア！地獄のステージ2へ進みます。");
+        }
+    </script>
+</body>
+</html>
